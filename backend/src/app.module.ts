@@ -17,6 +17,7 @@ import { FinanceModule } from '@app/modules/finance/finance.module';
 import { IdentityModule } from '@app/modules/identity/identity.module';
 import { LearningModule } from '@app/modules/learning/learning.module';
 import { MetricsModule } from '@app/modules/metrics/metrics.module';
+import { ParentsModule } from '@app/modules/parents/parents.module';
 import { SchedulingModule } from '@app/modules/scheduling/scheduling.module';
 
 const metricsEnabled = process.env.METRICS_ENABLED !== 'false';
@@ -39,6 +40,7 @@ const metricsEnabled = process.env.METRICS_ENABLED !== 'false';
     FinanceModule,
     IdentityModule,
     LearningModule,
+    ParentsModule,
     SchedulingModule,
     HealthModule,
     ...(metricsEnabled ? [MetricsModule] : [])

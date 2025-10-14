@@ -21,6 +21,7 @@ model User {
 
   student Student?
   teacher Teacher?
+  parent  Parent?
 }
 
 model Student {
@@ -36,6 +37,7 @@ model Student {
   submissions Submission[]
   invoices    Invoice[]
   attendance  AttendanceRecord[]
+  parents     ParentStudentLink[]
 }
 
 model Teacher {
@@ -239,4 +241,39 @@ model Payment {
   metadata  Json?
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model Parent {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  phone       String?
+  secondaryEmail String?
+  address     String?
+  notes       String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  links  ParentStudentLink[]
+}
+
+model ParentStudentLink {
+  id           String   @id @default(cuid())
+  parentId     String
+  studentId    String
+  relationship String?
+  isPrimary    Boolean  @default(false)
+  status       String   @default("active")
+  invitedAt    DateTime?
+  linkedAt     DateTime @default(now())
+  revokedAt    DateTime?
+  metadata     Json?
+
+  parent  Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, studentId])
+  @@index([studentId])
+  @@index([parentId, status])
 }

@@ -7,6 +7,7 @@ async function main() {
   const adminPassword = await bcrypt.hash('admin123', 10);
   const teacherPassword = await bcrypt.hash('teacher123', 10);
   const studentPassword = await bcrypt.hash('student123', 10);
+  const parentPassword = await bcrypt.hash('parent123', 10);
 
   const adminUser = await prisma.user.upsert({
     where: { email: 'dattvhp@gmail.com' },
@@ -44,6 +45,18 @@ async function main() {
     }
   });
 
+  const parentUser = await prisma.user.upsert({
+    where: { email: 'parent@example.com' },
+    update: {},
+    create: {
+      email: 'parent@example.com',
+      password: parentPassword,
+      displayName: 'Mary Parent',
+      roles: ['PARENT'],
+      status: 'active'
+    }
+  });
+
   const teacher = await prisma.teacher.upsert({
     where: { userId: teacherUser.id },
     update: {},
@@ -59,6 +72,16 @@ async function main() {
     create: {
       userId: studentUser.id,
       code: 'STU-001'
+    }
+  });
+
+  const parent = await prisma.parent.upsert({
+    where: { userId: parentUser.id },
+    update: {},
+    create: {
+      userId: parentUser.id,
+      phone: '+84901234567',
+      metadata: { preferredLanguage: 'vi' }
     }
   });
 
@@ -158,6 +181,24 @@ async function main() {
       sessionId: session.id,
       studentId: student.id,
       status: 'present'
+    }
+  });
+
+  await prisma.parentStudentLink.upsert({
+    where: {
+      parentId_studentId: {
+        parentId: parent.id,
+        studentId: student.id
+      }
+    },
+    update: {},
+    create: {
+      parentId: parent.id,
+      studentId: student.id,
+      relationship: 'Mother',
+      isPrimary: true,
+      status: 'active',
+      invitedAt: new Date()
     }
   });
 
