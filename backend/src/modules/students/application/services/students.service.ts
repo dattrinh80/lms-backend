@@ -7,17 +7,14 @@ import {
 import * as bcrypt from 'bcrypt';
 
 import { Student } from '../../domain/entities/student.entity';
-import {
-  CreateStudentInput,
-  StudentsRepository,
-  UpdateStudentInput
-} from '../../domain/repositories/students.repository';
-import { ParentsService, CreateParentInput } from '@app/modules/parents/application/services/parents.service';
+import { StudentsRepository } from '../../domain/repositories/students.repository';
+import { ParentsService } from '@app/modules/parents/application/services/parents.service';
 import { ParentStudentLink } from '@app/modules/parents/domain/entities/parent-student-link.entity';
 import { UsersRepository } from '@app/modules/identity/domain/repositories/users.repository';
 import { PrismaService } from '@app/infrastructure/database';
 import { serializePrismaJson } from '@app/common/utils/prisma-json.util';
 import { User } from '@app/modules/identity/domain/entities/user.entity';
+import { Prisma } from '@prisma/client';
 
 export interface ExistingParentLinkPayload {
   parentId: string;
@@ -109,7 +106,7 @@ export class StudentsService {
   async createStudentUser(input: CreateStudentUserInput): Promise<StudentProfileDetails> {
     const hashedPassword = await bcrypt.hash(input.user.password, 10);
 
-    const { user, student } = await this.prisma.$transaction(async tx => {
+    const userId = await this.prisma.$transaction(async tx => {
       const createdUser = await tx.user.create({
         data: {
           email: input.user.email,
@@ -133,20 +130,15 @@ export class StudentsService {
         }
       });
 
-      return { user: createdUser, student: createdStudent };
-    });
-
-    try {
-      await this.applyParentOperations(student.id, {
+      await this.applyParentOperationsTransactional(tx, createdStudent.id, {
         linkExistingParents: input.profile.linkExistingParents,
         createParents: input.profile.createParents
       });
-    } catch (error) {
-      await this.safeCleanupStudentUser(student.id, user.id);
-      throw error;
-    }
 
-    return this.getProfileByUserId(user.id);
+      return createdUser.id;
+    });
+
+    return this.getProfileByUserId(userId);
   }
 
   async createProfile(userId: string, input: CreateStudentProfileInput): Promise<StudentProfileDetails> {
@@ -164,11 +156,20 @@ export class StudentsService {
       throw new ConflictException('Student profile already exists');
     }
 
-    const student = await this.studentsRepository.create(this.toCreateInput(userId, input));
+    await this.prisma.$transaction(async tx => {
+      const createdStudent = await tx.student.create({
+        data: {
+          userId,
+          code: input.code ?? undefined,
+          metadata:
+            input.metadata !== undefined ? serializePrismaJson(input.metadata) : undefined
+        }
+      });
 
-    await this.applyParentOperations(student.id, {
-      linkExistingParents: input.linkExistingParents,
-      createParents: input.createParents
+      await this.applyParentOperationsTransactional(tx, createdStudent.id, {
+        linkExistingParents: input.linkExistingParents,
+        createParents: input.createParents
+      });
     });
 
     return this.getProfileByUserId(userId);
@@ -180,16 +181,26 @@ export class StudentsService {
       throw new NotFoundException('Student profile not found');
     }
 
-    await this.studentsRepository.updateByUserId(
-      userId,
-      this.toUpdateInput(input)
-    );
+    await this.prisma.$transaction(async tx => {
+      await tx.student.update({
+        where: { userId },
+        data: {
+          code: input.code === undefined ? undefined : input.code,
+          metadata:
+            input.metadata === undefined
+              ? undefined
+              : input.metadata === null
+              ? Prisma.JsonNull
+              : serializePrismaJson(input.metadata)
+        }
+      });
 
-    await this.applyParentOperations(student.id, {
-      linkExistingParents: input.linkExistingParents,
-      createParents: input.createParents,
-      unlinkParents: input.unlinkParents,
-      updateParentLinks: input.updateParentLinks
+      await this.applyParentOperationsTransactional(tx, student.id, {
+        linkExistingParents: input.linkExistingParents,
+        createParents: input.createParents,
+        unlinkParents: input.unlinkParents,
+        updateParentLinks: input.updateParentLinks
+      });
     });
 
     return this.getProfileByUserId(userId);
@@ -209,22 +220,8 @@ export class StudentsService {
     await this.studentsRepository.deleteByUserId(userId);
   }
 
-  private toCreateInput(userId: string, input: CreateStudentProfileInput): CreateStudentInput {
-    return {
-      userId,
-      code: input.code ?? undefined,
-      metadata: input.metadata
-    };
-  }
-
-  private toUpdateInput(input: UpdateStudentProfileInput): UpdateStudentInput {
-    return {
-      code: input.code === undefined ? undefined : input.code,
-      metadata: input.metadata === undefined ? undefined : input.metadata
-    };
-  }
-
-  private async applyParentOperations(
+  private async applyParentOperationsTransactional(
+    tx: Prisma.TransactionClient,
     studentId: string,
     operations: {
       linkExistingParents?: ExistingParentLinkPayload[];
@@ -235,77 +232,112 @@ export class StudentsService {
   ) {
     if (operations.createParents) {
       for (const parent of operations.createParents) {
-        const payload: CreateParentInput = {
-          email: parent.email,
-          displayName: parent.displayName,
-          password: parent.password,
-          phone: parent.phone,
-          secondaryEmail: parent.secondaryEmail,
-          address: parent.address,
-          notes: parent.notes,
-          metadata: parent.metadata,
-          students: [
-            {
-              studentId,
-              relationship: parent.relationship,
-              isPrimary: parent.isPrimary,
-              status: parent.status ?? 'active',
-              metadata: parent.metadata
-            }
-          ]
-        };
+        const hashedPassword = await bcrypt.hash(parent.password, 10);
+        const parentUser = await tx.user.create({
+          data: {
+            email: parent.email,
+            password: hashedPassword,
+            displayName: parent.displayName,
+            roles: ['PARENT'],
+            status: parent.status ?? 'active',
+            metadata:
+              parent.metadata !== undefined ? serializePrismaJson(parent.metadata) : undefined
+          }
+        });
 
-        await this.parentsService.create(payload);
+        const parentRecord = await tx.parent.create({
+          data: {
+            userId: parentUser.id,
+            phone: parent.phone,
+            secondaryEmail: parent.secondaryEmail,
+            address: parent.address,
+            notes: parent.notes,
+            metadata:
+              parent.metadata !== undefined ? serializePrismaJson(parent.metadata) : undefined
+          }
+        });
+
+        await tx.parentStudentLink.create({
+          data: {
+            parentId: parentRecord.id,
+            studentId,
+            relationship: parent.relationship,
+            isPrimary: parent.isPrimary ?? false,
+            status: parent.status ?? 'active',
+            invitedAt: parent.status === 'invited' ? new Date() : undefined,
+            linkedAt: new Date(),
+            metadata:
+              parent.metadata !== undefined ? serializePrismaJson(parent.metadata) : undefined
+          }
+        });
       }
     }
 
     if (operations.linkExistingParents) {
       for (const parent of operations.linkExistingParents) {
-        await this.parentsService.linkStudent(parent.parentId, {
-          studentId,
-          relationship: parent.relationship,
-          isPrimary: parent.isPrimary,
-          status: parent.status ?? 'active',
-          metadata: parent.metadata
+        await tx.parentStudentLink.upsert({
+          where: {
+            parentId_studentId: {
+              parentId: parent.parentId,
+              studentId
+            }
+          },
+          update: {
+            relationship: parent.relationship ?? undefined,
+            isPrimary: parent.isPrimary ?? undefined,
+            status: parent.status ?? undefined,
+            metadata:
+              parent.metadata === undefined
+                ? undefined
+                : serializePrismaJson(parent.metadata)
+          },
+          create: {
+            parentId: parent.parentId,
+            studentId,
+            relationship: parent.relationship,
+            isPrimary: parent.isPrimary ?? false,
+            status: parent.status ?? 'active',
+            linkedAt: new Date(),
+            metadata:
+              parent.metadata !== undefined ? serializePrismaJson(parent.metadata) : undefined
+          }
         });
       }
     }
 
     if (operations.updateParentLinks) {
       for (const link of operations.updateParentLinks) {
-        await this.parentsService.updateLink(link.parentId, studentId, {
-          relationship: link.relationship ?? undefined,
-          isPrimary: link.isPrimary ?? undefined,
-          status: link.status ?? undefined,
-          metadata: link.metadata ?? undefined
+        await tx.parentStudentLink.update({
+          where: {
+            parentId_studentId: {
+              parentId: link.parentId,
+              studentId
+            }
+          },
+          data: {
+            relationship: link.relationship ?? undefined,
+            isPrimary: link.isPrimary ?? undefined,
+            status: link.status ?? undefined,
+            metadata:
+              link.metadata === undefined
+                ? undefined
+                : link.metadata === null
+                ? Prisma.JsonNull
+                : serializePrismaJson(link.metadata)
+          }
         });
       }
     }
 
     if (operations.unlinkParents) {
       for (const parentId of operations.unlinkParents) {
-        await this.parentsService.unlinkStudent(parentId, studentId);
+        await tx.parentStudentLink.deleteMany({
+          where: {
+            parentId,
+            studentId
+          }
+        });
       }
     }
-  }
-
-  private async safeCleanupStudentUser(studentId: string, userId: string) {
-    await this.prisma.parentStudentLink.deleteMany({
-      where: {
-        studentId
-      }
-    });
-
-    await this.prisma.student
-      .delete({
-        where: { id: studentId }
-      })
-      .catch(() => undefined);
-
-    await this.prisma.user
-      .delete({
-        where: { id: userId }
-      })
-      .catch(() => undefined);
   }
 }
