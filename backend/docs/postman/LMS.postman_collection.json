@@ -1,0 +1,214 @@
+{
+  "info": {
+    "_postman_id": "4d2d5d7f-3c0a-4c1b-90bf-1b6bc7f7384f",
+    "name": "LMS API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "{{baseUrl}}"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Login successful\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "let data = {};",
+                  "try {",
+                  "    data = pm.response.json();",
+                  "} catch (err) {",
+                  "    console.warn('Unable to parse login response as JSON', err);",
+                  "}",
+                  "",
+                  "if (data && data.accessToken) {",
+                  "    pm.environment.set('accessToken', data.accessToken);",
+                  "    console.log('Access token stored in environment');",
+                  "} else {",
+                  "    console.warn('No access token found in login response');",
+                  "}",
+                  "",
+                  "if (data && data.refreshToken) {",
+                  "    pm.environment.set('refreshToken', data.refreshToken);",
+                  "}",
+                  "",
+                  "if (data && data.user) {",
+                  "    pm.environment.set('currentUserId', data.user.id || '');",
+                  "    pm.environment.set('currentUserEmail', data.user.username || '');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "refresh"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Refresh successful\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "let data = {};",
+                  "try {",
+                  "    data = pm.response.json();",
+                  "} catch (err) {",
+                  "    console.warn('Unable to parse refresh response as JSON', err);",
+                  "}",
+                  "",
+                  "if (data && data.accessToken) {",
+                  "    pm.environment.set('accessToken', data.accessToken);",
+                  "    console.log('Access token refreshed');",
+                  "} else {",
+                  "    console.warn('No access token found in refresh response');",
+                  "}",
+                  "",
+                  "if (data && data.refreshToken) {",
+                  "    pm.environment.set('refreshToken', data.refreshToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Logout acknowledged\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Identity",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

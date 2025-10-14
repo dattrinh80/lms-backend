@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 
 import { Teacher } from '../../domain/entities/teacher.entity';
 import {
@@ -12,6 +13,9 @@ import {
   UpdateTeacherInput
 } from '../../domain/repositories/teachers.repository';
 import { UsersRepository } from '@app/modules/identity/domain/repositories/users.repository';
+import { PrismaService } from '@app/infrastructure/database';
+import { serializePrismaJson } from '@app/common/utils/prisma-json.util';
+import { User } from '@app/modules/identity/domain/entities/user.entity';
 
 export interface CreateTeacherProfileInput {
   bio?: string | null;
@@ -23,11 +27,25 @@ export interface UpdateTeacherProfileInput {
   metadata?: Record<string, unknown> | null;
 }
 
+export interface CreateTeacherUserAccountInput {
+  email: string;
+  password: string;
+  displayName: string;
+  status?: User['status'];
+  metadata?: Record<string, unknown>;
+}
+
+export interface CreateTeacherUserInput {
+  user: CreateTeacherUserAccountInput;
+  profile: CreateTeacherProfileInput;
+}
+
 @Injectable()
 export class TeachersService {
   constructor(
     private readonly teachersRepository: TeachersRepository,
-    private readonly usersRepository: UsersRepository
+    private readonly usersRepository: UsersRepository,
+    private readonly prisma: PrismaService
   ) {}
 
   async getProfileByUserId(userId: string): Promise<Teacher> {
@@ -72,6 +90,39 @@ export class TeachersService {
     }
 
     await this.teachersRepository.deleteByUserId(userId);
+  }
+
+  async createTeacherUser(input: CreateTeacherUserInput): Promise<Teacher> {
+    const hashedPassword = await bcrypt.hash(input.user.password, 10);
+
+    const { user } = await this.prisma.$transaction(async tx => {
+      const createdUser = await tx.user.create({
+        data: {
+          email: input.user.email,
+          password: hashedPassword,
+          displayName: input.user.displayName,
+          roles: ['TEACHER'],
+          status: input.user.status ?? 'active',
+          metadata:
+            input.user.metadata !== undefined ? serializePrismaJson(input.user.metadata) : undefined
+        }
+      });
+
+      await tx.teacher.create({
+        data: {
+          userId: createdUser.id,
+          bio: input.profile.bio ?? undefined,
+          metadata:
+            input.profile.metadata !== undefined
+              ? serializePrismaJson(input.profile.metadata)
+              : undefined
+        }
+      });
+
+      return { user: createdUser };
+    });
+
+    return this.getProfileByUserId(user.id);
   }
 
   private toCreateInput(userId: string, input: CreateTeacherProfileInput): CreateTeacherInput {

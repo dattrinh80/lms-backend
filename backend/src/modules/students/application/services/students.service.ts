@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 
 import { Student } from '../../domain/entities/student.entity';
 import {
@@ -14,6 +15,9 @@ import {
 import { ParentsService, CreateParentInput } from '@app/modules/parents/application/services/parents.service';
 import { ParentStudentLink } from '@app/modules/parents/domain/entities/parent-student-link.entity';
 import { UsersRepository } from '@app/modules/identity/domain/repositories/users.repository';
+import { PrismaService } from '@app/infrastructure/database';
+import { serializePrismaJson } from '@app/common/utils/prisma-json.util';
+import { User } from '@app/modules/identity/domain/entities/user.entity';
 
 export interface ExistingParentLinkPayload {
   parentId: string;
@@ -66,12 +70,26 @@ export interface StudentProfileDetails {
   parents: ParentStudentLink[];
 }
 
+export interface CreateStudentUserAccountInput {
+  email: string;
+  password: string;
+  displayName: string;
+  status?: User['status'];
+  metadata?: Record<string, unknown>;
+}
+
+export interface CreateStudentUserInput {
+  user: CreateStudentUserAccountInput;
+  profile: CreateStudentProfileInput;
+}
+
 @Injectable()
 export class StudentsService {
   constructor(
     private readonly studentsRepository: StudentsRepository,
     private readonly usersRepository: UsersRepository,
-    private readonly parentsService: ParentsService
+    private readonly parentsService: ParentsService,
+    private readonly prisma: PrismaService
   ) {}
 
   async getProfileByUserId(userId: string): Promise<StudentProfileDetails> {
@@ -86,6 +104,49 @@ export class StudentsService {
       student,
       parents
     };
+  }
+
+  async createStudentUser(input: CreateStudentUserInput): Promise<StudentProfileDetails> {
+    const hashedPassword = await bcrypt.hash(input.user.password, 10);
+
+    const { user, student } = await this.prisma.$transaction(async tx => {
+      const createdUser = await tx.user.create({
+        data: {
+          email: input.user.email,
+          password: hashedPassword,
+          displayName: input.user.displayName,
+          roles: ['STUDENT'],
+          status: input.user.status ?? 'active',
+          metadata:
+            input.user.metadata !== undefined ? serializePrismaJson(input.user.metadata) : undefined
+        }
+      });
+
+      const createdStudent = await tx.student.create({
+        data: {
+          userId: createdUser.id,
+          code: input.profile.code ?? undefined,
+          metadata:
+            input.profile.metadata !== undefined
+              ? serializePrismaJson(input.profile.metadata)
+              : undefined
+        }
+      });
+
+      return { user: createdUser, student: createdStudent };
+    });
+
+    try {
+      await this.applyParentOperations(student.id, {
+        linkExistingParents: input.profile.linkExistingParents,
+        createParents: input.profile.createParents
+      });
+    } catch (error) {
+      await this.safeCleanupStudentUser(student.id, user.id);
+      throw error;
+    }
+
+    return this.getProfileByUserId(user.id);
   }
 
   async createProfile(userId: string, input: CreateStudentProfileInput): Promise<StudentProfileDetails> {
@@ -226,5 +287,25 @@ export class StudentsService {
         await this.parentsService.unlinkStudent(parentId, studentId);
       }
     }
+  }
+
+  private async safeCleanupStudentUser(studentId: string, userId: string) {
+    await this.prisma.parentStudentLink.deleteMany({
+      where: {
+        studentId
+      }
+    });
+
+    await this.prisma.student
+      .delete({
+        where: { id: studentId }
+      })
+      .catch(() => undefined);
+
+    await this.prisma.user
+      .delete({
+        where: { id: userId }
+      })
+      .catch(() => undefined);
   }
 }
