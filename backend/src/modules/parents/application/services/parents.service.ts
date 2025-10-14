@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { Prisma } from '@prisma/client';
 
 import { PaginatedResult } from '@app/common/types/pagination';
+import { PrismaService } from '@app/infrastructure/database';
+import { serializePrismaJson } from '@app/common/utils/prisma-json.util';
 
 import { User } from '@app/modules/identity/domain/entities/user.entity';
-import { UsersRepository } from '@app/modules/identity/domain/repositories/users.repository';
 
 import { Parent } from '../../domain/entities/parent.entity';
 import { ParentStudentLink } from '../../domain/entities/parent-student-link.entity';
@@ -51,7 +53,7 @@ export interface UpdateParentInput {
 export class ParentsService {
   constructor(
     private readonly parentsRepository: ParentsRepository,
-    private readonly usersRepository: UsersRepository
+    private readonly prisma: PrismaService
   ) {}
 
   search(filters?: SearchParentsFilters): Promise<PaginatedResult<Parent>> {
@@ -87,70 +89,95 @@ export class ParentsService {
   async create(input: CreateParentInput): Promise<Parent> {
     const hashedPassword = await bcrypt.hash(input.password, 10);
 
-    const user = await this.usersRepository.create({
-      email: input.email,
-      displayName: input.displayName,
-      password: hashedPassword,
-      roles: ['PARENT'],
-      status: input.status ?? 'active',
-      metadata: input.metadata
-    });
+    const parentId = await this.prisma.$transaction(async tx => {
+      const user = await tx.user.create({
+        data: {
+          email: input.email,
+          password: hashedPassword,
+          displayName: input.displayName,
+          roles: ['PARENT'],
+          status: input.status ?? 'active',
+          metadata:
+            input.metadata !== undefined ? serializePrismaJson(input.metadata) : undefined
+        }
+      });
 
-    const parent = await this.parentsRepository.create({
-      userId: user.id,
-      phone: input.phone,
-      secondaryEmail: input.secondaryEmail,
-      address: input.address,
-      notes: input.notes,
-      metadata: input.metadata
-    });
+      const parent = await tx.parent.create({
+        data: {
+          userId: user.id,
+          phone: input.phone,
+          secondaryEmail: input.secondaryEmail,
+          address: input.address,
+          notes: input.notes,
+          metadata:
+            input.metadata !== undefined ? serializePrismaJson(input.metadata) : undefined
+        }
+      });
 
-    if (input.students && input.students.length > 0) {
-      for (const student of input.students) {
-        await this.parentsRepository.linkStudent(parent.id, {
-          studentId: student.studentId,
-          relationship: student.relationship,
-          isPrimary: student.isPrimary,
-          status: student.status,
-          metadata: student.metadata
-        });
+      if (input.students && input.students.length > 0) {
+        for (const student of input.students) {
+          const status = student.status ?? 'active';
+          await tx.parentStudentLink.create({
+            data: {
+              parentId: parent.id,
+              studentId: student.studentId,
+              relationship: student.relationship,
+              isPrimary: student.isPrimary ?? false,
+              status,
+              invitedAt: status === 'invited' ? new Date() : undefined,
+              linkedAt: new Date(),
+              revokedAt: status === 'revoked' ? new Date() : undefined,
+              metadata:
+                student.metadata !== undefined
+                  ? serializePrismaJson(student.metadata)
+                  : undefined
+            }
+          });
+        }
       }
-    }
 
-    return this.findById(parent.id, true);
+      return parent.id;
+    });
+
+    return this.findById(parentId, true);
   }
 
   async update(id: string, input: UpdateParentInput): Promise<Parent> {
     const parent = await this.findById(id, false);
 
-    let user: User | null = null;
-    if (input.displayName !== undefined || input.status !== undefined || input.password) {
-      const hashedPassword = input.password ? await bcrypt.hash(input.password, 10) : undefined;
-      user = await this.usersRepository.update(parent.userId, {
-        displayName: input.displayName,
-        status: input.status,
-        password: hashedPassword
-      });
-    }
+    const result = await this.prisma.$transaction(async tx => {
+      if (input.displayName !== undefined || input.status !== undefined || input.password) {
+        const hashedPassword = input.password ? await bcrypt.hash(input.password, 10) : undefined;
+        await tx.user.update({
+          where: { id: parent.userId },
+          data: {
+            displayName: input.displayName ?? undefined,
+            status: input.status ?? undefined,
+            password: hashedPassword ?? undefined
+          }
+        });
+      }
 
-    const updated = await this.parentsRepository.update(id, {
-      phone: input.phone === undefined ? undefined : input.phone,
-      secondaryEmail: input.secondaryEmail === undefined ? undefined : input.secondaryEmail,
-      address: input.address === undefined ? undefined : input.address,
-      notes: input.notes === undefined ? undefined : input.notes,
-      metadata: input.metadata === undefined ? undefined : input.metadata
+      await tx.parent.update({
+        where: { id },
+        data: {
+          phone: input.phone === undefined ? undefined : input.phone,
+          secondaryEmail: input.secondaryEmail === undefined ? undefined : input.secondaryEmail,
+          address: input.address === undefined ? undefined : input.address,
+          notes: input.notes === undefined ? undefined : input.notes,
+          metadata:
+            input.metadata === undefined
+              ? undefined
+              : input.metadata === null
+              ? Prisma.JsonNull
+              : serializePrismaJson(input.metadata)
+        }
+      });
+
+      return parent.id;
     });
 
-    if (user) {
-      updated.user = {
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-        status: user.status
-      };
-    }
-
-    return this.findById(updated.id, true);
+    return this.findById(result, true);
   }
 
   async linkStudent(parentId: string, input: LinkStudentInput): Promise<ParentStudentLink> {
