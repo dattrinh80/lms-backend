@@ -9,11 +9,15 @@ import {
   Param,
   Patch,
   Post,
-  Query
+  Query,
+  UseGuards
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { buildPaginatedResponse } from '@app/common/utils/pagination.util';
+import { Roles } from '@app/common/decorators/roles.decorator';
+import { JwtAuthGuard } from '@app/modules/auth/infrastructure/http/jwt-auth.guard';
+import { RolesGuard } from '@app/modules/auth/infrastructure/http/roles.guard';
 
 import { CreateUserDto } from './dto/create-user.dto';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
@@ -26,6 +30,8 @@ import { UsersService } from '../../application/services/users.service';
   path: 'users',
   version: '1'
 })
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

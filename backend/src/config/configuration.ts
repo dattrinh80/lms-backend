@@ -13,9 +13,9 @@ export default () => ({
     shadowUrl: process.env.SHADOW_DATABASE_URL ?? ''
   },
   auth: {
-    accessTokenSecret: process.env.JWT_ACCESS_TOKEN_SECRET ?? '',
+    accessTokenSecret: process.env.JWT_ACCESS_TOKEN_SECRET ?? 'dev-access-token-secret',
     accessTokenExpiresIn: process.env.JWT_ACCESS_TOKEN_EXPIRES_IN ?? '15m',
-    refreshTokenSecret: process.env.JWT_REFRESH_TOKEN_SECRET ?? '',
+    refreshTokenSecret: process.env.JWT_REFRESH_TOKEN_SECRET ?? 'dev-refresh-token-secret',
     refreshTokenExpiresIn: process.env.JWT_REFRESH_TOKEN_EXPIRES_IN ?? '7d'
   },
   cache: {
