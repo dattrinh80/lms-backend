@@ -172,4 +172,11 @@ export class ParentsService {
   listLinks(parentId: string, onlyActive = false): Promise<ParentStudentLink[]> {
     return this.parentsRepository.listLinks(parentId, { onlyActive });
   }
+
+  listParentsByStudent(
+    studentId: string,
+    onlyActive = false
+  ): Promise<ParentStudentLink[]> {
+    return this.parentsRepository.listByStudentId(studentId, { onlyActive });
+  }
 }

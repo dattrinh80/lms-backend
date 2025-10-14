@@ -4,6 +4,14 @@ export interface ClassSectionSummary {
   name: string;
 }
 
+export interface ParentSummary {
+  id: string;
+  email: string;
+  displayName: string;
+  phone?: string | null;
+  secondaryEmail?: string | null;
+}
+
 export interface StudentSummary {
   id: string;
   code?: string | null;
@@ -27,4 +35,5 @@ export interface ParentStudentLink {
   revokedAt?: Date;
   metadata?: Record<string, unknown>;
   student?: StudentSummary;
+  parent?: ParentSummary;
 }

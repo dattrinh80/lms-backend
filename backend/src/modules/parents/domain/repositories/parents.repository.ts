@@ -72,4 +72,8 @@ export abstract class ParentsRepository {
     parentId: string,
     options?: { onlyActive?: boolean }
   ): Promise<ParentStudentLink[]>;
+  abstract listByStudentId(
+    studentId: string,
+    options?: { onlyActive?: boolean }
+  ): Promise<ParentStudentLink[]>;
 }

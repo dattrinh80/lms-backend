@@ -17,6 +17,7 @@ import { PrismaService } from '@app/infrastructure/database';
 import { Parent } from '../../domain/entities/parent.entity';
 import {
   ClassSectionSummary,
+  ParentSummary,
   ParentStudentLink,
   ParentStudentLinkStatus,
   StudentSummary
@@ -39,6 +40,9 @@ type ParentStudentLinkWithRelations = PrismaParentStudentLink & {
     enrollments: (PrismaEnrollment & {
       classSection: PrismaClassSection;
     })[];
+  };
+  parent?: PrismaParent & {
+    user: PrismaUser;
   };
 };
 
@@ -288,6 +292,27 @@ export class PrismaParentsRepository extends ParentsRepository {
     return links.map(link => this.mapLink(link as unknown as ParentStudentLinkWithRelations));
   }
 
+  async listByStudentId(
+    studentId: string,
+    options?: { onlyActive?: boolean }
+  ): Promise<ParentStudentLink[]> {
+    const where: Prisma.ParentStudentLinkWhereInput = {
+      studentId
+    };
+
+    if (options?.onlyActive) {
+      where.status = 'active';
+    }
+
+    const links = await this.prisma.parentStudentLink.findMany({
+      where,
+      orderBy: { linkedAt: 'desc' },
+      include: this.buildLinkInclude({ includeParent: true })
+    });
+
+    return links.map(link => this.mapLink(link as unknown as ParentStudentLinkWithRelations));
+  }
+
   private buildInclude(options?: ParentQueryOptions): ParentInclude | undefined {
     if (!options?.includeStudents) {
       return {
@@ -313,8 +338,8 @@ export class PrismaParentsRepository extends ParentsRepository {
     };
   }
 
-  private buildLinkInclude(): Prisma.ParentStudentLinkInclude {
-    return {
+  private buildLinkInclude(options?: { includeParent?: boolean }): Prisma.ParentStudentLinkInclude {
+    const include: Prisma.ParentStudentLinkInclude = {
       student: {
         include: {
           user: true,
@@ -326,6 +351,16 @@ export class PrismaParentsRepository extends ParentsRepository {
         }
       }
     };
+
+    if (options?.includeParent) {
+      include.parent = {
+        include: {
+          user: true
+        }
+      };
+    }
+
+    return include;
   }
 
   private map(
@@ -369,7 +404,8 @@ export class PrismaParentsRepository extends ParentsRepository {
       linkedAt: link.linkedAt,
       revokedAt: link.revokedAt ?? undefined,
       metadata: mapPrismaJson(link.metadata),
-      student: this.mapStudent(link.student)
+      student: this.mapStudent(link.student),
+      parent: link.parent ? this.mapParent(link.parent) : undefined
     };
   }
 
@@ -388,6 +424,18 @@ export class PrismaParentsRepository extends ParentsRepository {
             name: enrollment.classSection.name
           }) satisfies ClassSectionSummary
       )
+    };
+  }
+
+  private mapParent(
+    parent: NonNullable<ParentStudentLinkWithRelations['parent']>
+  ): ParentSummary {
+    return {
+      id: parent.id,
+      email: parent.user.email,
+      displayName: parent.user.displayName,
+      phone: parent.phone,
+      secondaryEmail: parent.secondaryEmail ?? undefined
     };
   }
 }
