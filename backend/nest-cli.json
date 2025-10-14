@@ -1,0 +1,13 @@
+{
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "assets": [
+      {
+        "include": "modules/**/infrastructure/**/*",
+        "outDir": "dist"
+      }
+    ],
+    "deleteOutDir": true
+  }
+}

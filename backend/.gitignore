@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+coverage/
+tmp/
+temp/
+*.tsbuildinfo
+.eslintcache
+
+# Environment variables and runtime config
+.env
+.env.*
+!.env.example
+prisma/.env
+
+# Logs and debug
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS/filesystem artifacts
+.DS_Store
+Thumbs.db
+
+# Editor settings
+.idea/
+.vscode/
+*.swp
+*.swo

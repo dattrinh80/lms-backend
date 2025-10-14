@@ -1,0 +1,242 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  password    String
+  displayName String
+  roles       Json
+  status      String   @default("active")
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  student Student?
+  teacher Teacher?
+}
+
+model Student {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  code      String?  @unique
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enrollments Enrollment[]
+  submissions Submission[]
+  invoices    Invoice[]
+  attendance  AttendanceRecord[]
+}
+
+model Teacher {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  bio       String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  homeroomOf    ClassSection[]
+  classSubjects ClassSubject[]
+  sessions      Session[]
+}
+
+model Subject {
+  id                     String  @id @default(cuid())
+  code                   String  @unique
+  name                   String
+  description            String?
+  defaultDurationMinutes Int?
+  metadata               Json?
+
+  classSubjects ClassSubject[]
+}
+
+model ClassSection {
+  id                String        @id @default(cuid())
+  code              String        @unique
+  name              String
+  level             String?
+  capacity          Int?
+  homeroomTeacherId String?
+  campusId          String?
+  metadata          Json?
+  startDate         DateTime?
+  endDate           DateTime?
+
+  homeroomTeacher Teacher?      @relation(fields: [homeroomTeacherId], references: [id])
+  enrollments     Enrollment[]
+  classSubjects   ClassSubject[]
+}
+
+model ClassSubject {
+  id             String        @id @default(cuid())
+  classSectionId String
+  subjectId      String
+  leadTeacherId  String?
+  weeklySessions Int?
+  creditHours    Int?
+  status         String?       @default("active")
+  metadata       Json?
+
+  classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  leadTeacher  Teacher?     @relation(fields: [leadTeacherId], references: [id])
+  sessions     Session[]
+  assignments  Assignment[]
+
+  @@unique([classSectionId, subjectId])
+}
+
+model Room {
+  id        String  @id @default(cuid())
+  name      String  @unique
+  location  String?
+  capacity  Int?
+  metadata  Json?
+
+  sessions Session[]
+}
+
+model Session {
+  id             String   @id @default(cuid())
+  classSubjectId String
+  teacherId      String?
+  roomId         String?
+  startsAt       DateTime
+  endsAt         DateTime
+  recurrenceId   String?
+  metadata       Json?
+
+  classSubject ClassSubject @relation(fields: [classSubjectId], references: [id], onDelete: Cascade)
+  teacher      Teacher?     @relation(fields: [teacherId], references: [id])
+  room         Room?        @relation(fields: [roomId], references: [id])
+  attendance   AttendanceRecord[]
+
+  @@index([startsAt])
+  @@index([teacherId, startsAt])
+  @@index([roomId, startsAt])
+}
+
+model Enrollment {
+  id             String       @id @default(cuid())
+  studentId      String
+  classSectionId String
+  status         String       @default("active")
+  joinedAt       DateTime     @default(now())
+  leftAt         DateTime?
+  metadata       Json?
+
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classSectionId])
+}
+
+model AttendanceRecord {
+  id         String   @id @default(cuid())
+  sessionId  String
+  studentId  String
+  status     String
+  note       String?
+  recordedAt DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, studentId])
+}
+
+model Assignment {
+  id             String   @id @default(cuid())
+  classSubjectId String
+  title          String
+  description    String?
+  dueDate        DateTime?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  classSubject ClassSubject @relation(fields: [classSubjectId], references: [id], onDelete: Cascade)
+  submissions  Submission[]
+}
+
+model Submission {
+  id           String   @id @default(cuid())
+  assignmentId String
+  studentId    String
+  type         String
+  payload      Json?
+  submittedAt  DateTime @default(now())
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  grade      Grade?
+
+  @@unique([assignmentId, studentId])
+}
+
+model Grade {
+  id           String   @id @default(cuid())
+  submissionId String   @unique
+  score        Float
+  maxScore     Float
+  rubric       Json?
+  feedback     String?
+  gradedAt     DateTime @default(now())
+  gradedBy     String?
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+}
+
+model Invoice {
+  id                String    @id @default(cuid())
+  studentId         String
+  period            String
+  status            String    @default("draft")
+  totalAmount       Float
+  outstandingAmount Float
+  issuedAt          DateTime  @default(now())
+  dueDate           DateTime?
+  metadata          Json?
+
+  student  Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lines    InvoiceLine[]
+  payments Payment[]
+
+  @@index([studentId, period])
+}
+
+model InvoiceLine {
+  id        String  @id @default(cuid())
+  invoiceId String
+  item      String
+  quantity  Int
+  unitPrice Float
+  subtotal  Float
+  metadata  Json?
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  invoiceId String
+  amount    Float
+  method    String
+  txRef     String?
+  paidAt    DateTime @default(now())
+  metadata  Json?
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
