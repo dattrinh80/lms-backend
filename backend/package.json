@@ -4,22 +4,21 @@
   "description": "Modular monolith backend for LMS platform.",
   "private": true,
   "scripts": {
-  "preinstall": "echo 'Installing dependencies...'",
-  "postinstall": "npx prisma generate",
-  "migrate": "npx prisma migrate deploy && npm run db:seed",
-  "start": "npm run migrate && nest start",
-  "start:dev": "nest start --watch",
-  "start:debug": "nest start --debug --watch",
-  "build": "nest build",
-  "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-  "lint": "eslint \"{src,test}/**/*.ts\" --max-warnings=0",
-  "test": "jest",
-  "test:watch": "jest --watch",
-  "test:cov": "jest --coverage",
-  "test:e2e": "jest --config ./test/jest-e2e.json",
-  "db:seed": "prisma db seed"
-}
-
+    "preinstall": "echo 'Installing dependencies...'",
+    "postinstall": "npx prisma generate",
+    "migrate": "npx prisma migrate deploy && npm run db:seed",
+    "start": "npm run migrate && nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "lint": "eslint \"{src,test}/**/*.ts\" --max-warnings=0",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "db:seed": "prisma db seed"
+  },
   "dependencies": {
     "@nestjs/common": "^10.3.8",
     "@nestjs/config": "^3.2.2",
