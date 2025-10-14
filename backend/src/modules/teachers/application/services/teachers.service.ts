@@ -7,15 +7,12 @@ import {
 import * as bcrypt from 'bcrypt';
 
 import { Teacher } from '../../domain/entities/teacher.entity';
-import {
-  CreateTeacherInput,
-  TeachersRepository,
-  UpdateTeacherInput
-} from '../../domain/repositories/teachers.repository';
-import { UsersRepository } from '@app/modules/identity/domain/repositories/users.repository';
+import { TeachersRepository } from '../../domain/repositories/teachers.repository';
 import { PrismaService } from '@app/infrastructure/database';
 import { serializePrismaJson } from '@app/common/utils/prisma-json.util';
 import { User } from '@app/modules/identity/domain/entities/user.entity';
+import { UsersRepository } from '@app/modules/identity/domain/repositories/users.repository';
+import { Prisma } from '@prisma/client';
 
 export interface CreateTeacherProfileInput {
   bio?: string | null;
@@ -71,7 +68,18 @@ export class TeachersService {
       throw new ConflictException('Teacher profile already exists');
     }
 
-    return this.teachersRepository.create(this.toCreateInput(userId, input));
+    await this.prisma.$transaction(async tx => {
+      await tx.teacher.create({
+        data: {
+          userId,
+          bio: input.bio ?? undefined,
+          metadata:
+            input.metadata !== undefined ? serializePrismaJson(input.metadata) : undefined
+        }
+      });
+    });
+
+    return this.getProfileByUserId(userId);
   }
 
   async updateProfile(userId: string, input: UpdateTeacherProfileInput): Promise<Teacher> {
@@ -80,7 +88,22 @@ export class TeachersService {
       throw new NotFoundException('Teacher profile not found');
     }
 
-    return this.teachersRepository.updateByUserId(userId, this.toUpdateInput(input));
+    await this.prisma.$transaction(async tx => {
+      await tx.teacher.update({
+        where: { userId },
+        data: {
+          bio: input.bio === undefined ? undefined : input.bio,
+          metadata:
+            input.metadata === undefined
+              ? undefined
+              : input.metadata === null
+              ? Prisma.JsonNull
+              : serializePrismaJson(input.metadata)
+        }
+      });
+    });
+
+    return this.getProfileByUserId(userId);
   }
 
   async deleteProfile(userId: string): Promise<void> {
@@ -95,7 +118,7 @@ export class TeachersService {
   async createTeacherUser(input: CreateTeacherUserInput): Promise<Teacher> {
     const hashedPassword = await bcrypt.hash(input.user.password, 10);
 
-    const { user } = await this.prisma.$transaction(async tx => {
+    const userId = await this.prisma.$transaction(async tx => {
       const createdUser = await tx.user.create({
         data: {
           email: input.user.email,
@@ -119,24 +142,9 @@ export class TeachersService {
         }
       });
 
-      return { user: createdUser };
+      return createdUser.id;
     });
 
-    return this.getProfileByUserId(user.id);
-  }
-
-  private toCreateInput(userId: string, input: CreateTeacherProfileInput): CreateTeacherInput {
-    return {
-      userId,
-      bio: input.bio ?? undefined,
-      metadata: input.metadata
-    };
-  }
-
-  private toUpdateInput(input: UpdateTeacherProfileInput): UpdateTeacherInput {
-    return {
-      bio: input.bio === undefined ? undefined : input.bio,
-      metadata: input.metadata === undefined ? undefined : input.metadata
-    };
+    return this.getProfileByUserId(userId);
   }
 }
