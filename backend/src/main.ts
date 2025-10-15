@@ -15,6 +15,27 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const logger = new NestLogger('Bootstrap');
 
+  const corsConfig = configService.get<{
+    enabled: boolean;
+    origin: true | string[];
+    credentials?: boolean;
+    allowedHeaders?: string[];
+    methods?: string[];
+  }>('cors');
+
+  if (corsConfig?.enabled) {
+    const origin =
+      Array.isArray(corsConfig.origin) && corsConfig.origin.length === 0
+        ? true
+        : corsConfig.origin;
+    app.enableCors({
+      origin,
+      credentials: corsConfig.credentials,
+      ...(corsConfig.allowedHeaders ? { allowedHeaders: corsConfig.allowedHeaders } : {}),
+      ...(corsConfig.methods ? { methods: corsConfig.methods } : {})
+    });
+  }
+
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
     new ValidationPipe({
