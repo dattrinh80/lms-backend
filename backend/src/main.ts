@@ -50,7 +50,7 @@ async function bootstrap() {
     .setDescription('Learning Management System modular monolith API documentation')
     .setVersion('1.0.0')
     .addServer('http://localhost:3000/api', 'Development server')
-    .addServer('https://api.lms.example.com/api', 'Production server')
+    .addServer('https://api-elms.datosolution.com/', 'Production server')
     .addBearerAuth(
       {
         type: 'http',
