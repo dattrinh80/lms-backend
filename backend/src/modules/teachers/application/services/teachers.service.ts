@@ -68,15 +68,13 @@ export class TeachersService {
       throw new ConflictException('Teacher profile already exists');
     }
 
-    await this.prisma.$transaction(async tx => {
-      await tx.teacher.create({
-        data: {
-          userId,
-          bio: input.bio ?? undefined,
-          metadata:
-            input.metadata !== undefined ? serializePrismaJson(input.metadata) : undefined
-        }
-      });
+    await this.prisma.teacher.create({
+      data: {
+        userId,
+        bio: input.bio ?? undefined,
+        metadata:
+          input.metadata !== undefined ? serializePrismaJson(input.metadata) : undefined
+      }
     });
 
     return this.getProfileByUserId(userId);
@@ -88,19 +86,17 @@ export class TeachersService {
       throw new NotFoundException('Teacher profile not found');
     }
 
-    await this.prisma.$transaction(async tx => {
-      await tx.teacher.update({
-        where: { userId },
-        data: {
-          bio: input.bio === undefined ? undefined : input.bio,
-          metadata:
-            input.metadata === undefined
-              ? undefined
-              : input.metadata === null
-              ? Prisma.JsonNull
-              : serializePrismaJson(input.metadata)
-        }
-      });
+    await this.prisma.teacher.update({
+      where: { userId },
+      data: {
+        bio: input.bio === undefined ? undefined : input.bio,
+        metadata:
+          input.metadata === undefined
+            ? undefined
+            : input.metadata === null
+            ? Prisma.JsonNull
+            : serializePrismaJson(input.metadata)
+      }
     });
 
     return this.getProfileByUserId(userId);
