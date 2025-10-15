@@ -8,6 +8,12 @@ export const validationSchema = Joi.object({
   LOG_LEVEL: Joi.string().default('info'),
   LOG_PRETTY: Joi.boolean().truthy('true').falsy('false').optional(),
 
+  CORS_ENABLED: Joi.boolean().truthy('true').falsy('false').default(true),
+  CORS_ORIGINS: Joi.string().allow('').optional(),
+  CORS_CREDENTIALS: Joi.boolean().truthy('true').falsy('false').optional(),
+  CORS_ALLOWED_HEADERS: Joi.string().allow('').optional(),
+  CORS_METHODS: Joi.string().allow('').optional(),
+
   DATABASE_URL: Joi.string().uri().required(),
   SHADOW_DATABASE_URL: Joi.string().uri().allow('').optional(),
 

@@ -8,6 +8,19 @@ export default () => ({
     level: process.env.LOG_LEVEL ?? 'info',
     pretty: process.env.LOG_PRETTY === 'true'
   },
+  cors: {
+    enabled: process.env.CORS_ENABLED !== 'false',
+    origin: process.env.CORS_ORIGINS
+      ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim()).filter(Boolean)
+      : true,
+    credentials: process.env.CORS_CREDENTIALS === 'true',
+    allowedHeaders: process.env.CORS_ALLOWED_HEADERS
+      ? process.env.CORS_ALLOWED_HEADERS.split(',').map(header => header.trim()).filter(Boolean)
+      : undefined,
+    methods: process.env.CORS_METHODS
+      ? process.env.CORS_METHODS.split(',').map(method => method.trim()).filter(Boolean)
+      : undefined
+  },
   database: {
     url: process.env.DATABASE_URL ?? '',
     shadowUrl: process.env.SHADOW_DATABASE_URL ?? ''
