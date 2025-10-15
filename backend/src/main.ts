@@ -46,20 +46,35 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle('LMS Backend')
-    .setDescription('LMS modular monolith API documentation')
-    .setVersion('0.1.0')
+    .setTitle('LMS Backend API')
+    .setDescription('Learning Management System modular monolith API documentation')
+    .setVersion('1.0.0')
+    .addServer('http://localhost:3000/api', 'Development server')
+    .addServer('https://api.lms.example.com/api', 'Production server')
     .addBearerAuth(
       {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
         name: 'Authorization',
-        description: 'JWT access token',
+        description: 'Enter JWT access token in the format: Bearer <token>',
         in: 'header'
       },
       'JWT'
     )
+    .addTag('auth', 'Authentication and authorization endpoints')
+    .addTag('users', 'User management endpoints')
+    .addTag('admin-students', 'Student profile and account management (Admin only)')
+    .addTag('admin-teachers', 'Teacher profile and account management (Admin only)')
+    .addTag('admin-parents', 'Parent profile and account management (Admin only)')
+    .addTag('parent-portal', 'Parent-facing endpoints for accessing student information')
+    .addTag('classes', 'Class section and room management')
+    .addTag('subjects', 'Subject curriculum management')
+    .addTag('scheduling', 'Teaching session scheduling')
+    .addTag('attendance', 'Student attendance tracking')
+    .addTag('assignments', 'Assignment management')
+    .addTag('grading', 'Grade recording and management')
+    .addTag('finance', 'Financial records and invoicing')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

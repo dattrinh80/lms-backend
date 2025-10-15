@@ -1,5 +1,5 @@
 import { Controller, Get, Param } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { GradingService } from '../../application/services/grading.service';
 
@@ -12,6 +12,7 @@ export class GradingController {
   constructor(private readonly gradingService: GradingService) {}
 
   @Get('assignments/:assignmentId')
+  @ApiOperation({ summary: 'List grades for a specific assignment' })
   async listGrades(@Param('assignmentId') assignmentId: string) {
     return this.gradingService.listGradesByAssignment(assignmentId);
   }

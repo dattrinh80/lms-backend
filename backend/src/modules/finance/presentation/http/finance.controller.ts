@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { FinanceService } from '../../application/services/finance.service';
 
@@ -12,6 +12,7 @@ export class FinanceController {
   constructor(private readonly financeService: FinanceService) {}
 
   @Get('invoices')
+  @ApiOperation({ summary: 'List all invoices' })
   async listInvoices() {
     return this.financeService.listInvoices();
   }

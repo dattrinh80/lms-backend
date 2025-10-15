@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { AssignmentsService } from '../../application/services/assignments.service';
 
@@ -12,6 +12,7 @@ export class AssignmentsController {
   constructor(private readonly assignmentsService: AssignmentsService) {}
 
   @Get()
+  @ApiOperation({ summary: 'List all assignments' })
   async listAssignments() {
     return this.assignmentsService.listAssignments();
   }

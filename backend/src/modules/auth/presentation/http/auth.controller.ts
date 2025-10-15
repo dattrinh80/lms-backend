@@ -34,7 +34,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Logout the current user (stateless acknowledgement)' })
+  @ApiOperation({ summary: 'Invalidate the current session on the server' })
   async logout(@CurrentUser() user: AuthUser) {
     await this.authService.logout(user);
   }
