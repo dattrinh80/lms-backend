@@ -8,7 +8,7 @@ import { AuthUser } from '../../domain/entities/auth-user.entity';
 interface JwtPayload {
   sub: string;
   username: string;
-  roles?: string[];
+  role: AuthUser['role'];
 }
 
 @Injectable()
@@ -23,12 +23,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   validate(payload: JwtPayload): AuthUser {
-    const roles = Array.isArray(payload.roles) ? payload.roles : [];
-
     return {
       id: payload.sub,
       username: payload.username,
-      roles
+      role: payload.role
     };
   }
 }

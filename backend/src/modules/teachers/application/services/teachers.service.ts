@@ -26,10 +26,13 @@ export interface UpdateTeacherProfileInput {
 
 export interface CreateTeacherUserAccountInput {
   email: string;
+  username: string;
   password: string;
   displayName: string;
   status?: User['status'];
   metadata?: Record<string, unknown>;
+  phoneNumber?: string | null;
+  dateOfBirth?: string | null;
 }
 
 export interface CreateTeacherUserInput {
@@ -59,7 +62,7 @@ export class TeachersService {
       throw new NotFoundException('User not found');
     }
 
-    if (!user.roles.includes('TEACHER')) {
+    if (user.role !== 'TEACHER') {
       throw new BadRequestException('User must have TEACHER role before creating profile');
     }
 
@@ -115,15 +118,21 @@ export class TeachersService {
     const hashedPassword = await bcrypt.hash(input.user.password, 10);
 
     const userId = await this.prisma.$transaction(async tx => {
+      const phoneNumber = this.normalizePhoneNumber(input.user.phoneNumber);
+      const dateOfBirth = this.parseDateOfBirth(input.user.dateOfBirth);
+
       const createdUser = await tx.user.create({
         data: {
           email: input.user.email,
+          username: input.user.username,
           password: hashedPassword,
           displayName: input.user.displayName,
-          roles: ['TEACHER'],
+          role: 'TEACHER',
           status: input.user.status ?? 'active',
           metadata:
-            input.user.metadata !== undefined ? serializePrismaJson(input.user.metadata) : undefined
+            input.user.metadata !== undefined ? serializePrismaJson(input.user.metadata) : undefined,
+          phoneNumber: phoneNumber === undefined ? undefined : phoneNumber,
+          dateOfBirth
         }
       });
 
@@ -142,5 +151,30 @@ export class TeachersService {
     });
 
     return this.getProfileByUserId(userId);
+  }
+
+  private parseDateOfBirth(value?: string | null): Date | null | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null || value.trim().length === 0) {
+      return null;
+    }
+
+    return new Date(value);
+  }
+
+  private normalizePhoneNumber(value?: string | null): string | null | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null) {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
   }
 }

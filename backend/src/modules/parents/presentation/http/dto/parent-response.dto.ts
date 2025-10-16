@@ -18,7 +18,19 @@ export class ParentResponseDto {
   displayName: string;
 
   @ApiProperty()
+  username: string;
+
+  @ApiProperty({ enum: ['ADMIN', 'STUDENT', 'TEACHER', 'PARENT', 'HUMAN_RESOURCES'] })
+  role: string;
+
+  @ApiProperty()
   status: string;
+
+  @ApiProperty({ required: false, nullable: true })
+  phoneNumber?: string | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  dateOfBirth?: string | null;
 
   @ApiProperty({ required: false, nullable: true })
   phone?: string;
@@ -50,7 +62,13 @@ export class ParentResponseDto {
       userId: parent.userId,
       email: parent.user.email,
       displayName: parent.user.displayName,
+      username: parent.user.username,
+      role: parent.user.role,
       status: parent.user.status,
+      phoneNumber: parent.user.phoneNumber ?? null,
+      dateOfBirth: parent.user.dateOfBirth
+        ? parent.user.dateOfBirth.toISOString().split('T')[0]
+        : null,
       phone: parent.phone ?? undefined,
       secondaryEmail: parent.secondaryEmail ?? undefined,
       address: parent.address ?? undefined,

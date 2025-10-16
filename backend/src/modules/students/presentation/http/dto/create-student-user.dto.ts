@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  IsDateString,
   IsEmail,
   IsOptional,
   IsString,
@@ -24,6 +25,12 @@ class StudentUserAccountDto {
   @MaxLength(150)
   displayName: string;
 
+  @ApiProperty({ example: 'john.student' })
+  @IsString()
+  @MinLength(3)
+  @MaxLength(50)
+  username: string;
+
   @ApiProperty({ example: 'StrongP@ssw0rd' })
   @IsString()
   @MinLength(8)
@@ -41,6 +48,17 @@ class StudentUserAccountDto {
   })
   @IsOptional()
   metadata?: Record<string, unknown>;
+
+  @ApiProperty({ example: '+84901234567', required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  phoneNumber?: string;
+
+  @ApiProperty({ example: '2006-03-15', required: false })
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string;
 }
 
 class StudentProfilePayloadDto extends CreateStudentProfileDto {}

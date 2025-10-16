@@ -1,9 +1,14 @@
+import { UserRole } from '@app/modules/identity/domain/entities/user.entity';
+
 export interface StudentUserSummary {
   id: string;
   email: string;
+  username: string;
   displayName: string;
-  roles: string[];
+  role: UserRole;
   status: 'active' | 'inactive' | 'invited';
+  phoneNumber?: string | null;
+  dateOfBirth?: Date | null;
 }
 
 export interface Student {

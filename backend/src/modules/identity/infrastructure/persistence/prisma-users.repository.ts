@@ -24,11 +24,14 @@ export class PrismaUsersRepository extends UsersRepository {
     const record = await this.prisma.user.create({
       data: {
         email: input.email,
+        username: input.username,
         password: input.password,
         displayName: input.displayName,
-        roles: input.roles,
+        role: input.role,
         status: input.status ?? 'active',
-        metadata: serializePrismaJson(input.metadata)
+        metadata: serializePrismaJson(input.metadata),
+        phoneNumber: input.phoneNumber ?? null,
+        dateOfBirth: input.dateOfBirth ?? null
       }
     });
 
@@ -41,9 +44,18 @@ export class PrismaUsersRepository extends UsersRepository {
       data: {
         displayName: input.displayName,
         password: input.password,
-        roles: input.roles,
+        username: input.username,
+        role: input.role,
         status: input.status,
-        metadata: input.metadata !== undefined ? serializePrismaJson(input.metadata) : undefined
+        metadata: input.metadata !== undefined ? serializePrismaJson(input.metadata) : undefined,
+        phoneNumber:
+          input.phoneNumber !== undefined
+            ? input.phoneNumber ?? null
+            : undefined,
+        dateOfBirth:
+          input.dateOfBirth !== undefined
+            ? input.dateOfBirth ?? null
+            : undefined
       }
     });
 
@@ -72,18 +84,28 @@ export class PrismaUsersRepository extends UsersRepository {
     return record ? this.map(record) : null;
   }
 
+  async findByUsername(username: string): Promise<User | null> {
+    const record = await this.prisma.user.findUnique({
+      where: { username }
+    });
+
+    return record ? this.map(record) : null;
+  }
+
   async search(filters?: SearchUsersFilters): Promise<PaginatedResult<User>> {
     const where: Prisma.UserWhereInput = {};
 
     if (filters?.query) {
       where.OR = [
         { email: { contains: filters.query } },
-        { displayName: { contains: filters.query } }
+        { displayName: { contains: filters.query } },
+        { username: { contains: filters.query } },
+        { phoneNumber: { contains: filters.query } }
       ];
     }
 
     if (filters?.roles && filters.roles.length > 0) {
-      where.roles = { array_contains: filters.roles };
+      where.role = { in: filters.roles };
     }
 
     if (filters?.status) {
@@ -114,10 +136,13 @@ export class PrismaUsersRepository extends UsersRepository {
     return {
       id: record.id,
       email: record.email,
+      username: record.username,
       displayName: record.displayName,
-      roles: Array.isArray(record.roles) ? (record.roles as string[]) : [],
+      role: record.role as User['role'],
       status: record.status as User['status'],
       metadata: mapPrismaJson(record.metadata),
+      phoneNumber: record.phoneNumber,
+      dateOfBirth: record.dateOfBirth,
       passwordHash: record.password
     };
   }

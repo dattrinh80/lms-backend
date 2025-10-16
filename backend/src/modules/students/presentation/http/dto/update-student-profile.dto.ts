@@ -2,11 +2,13 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsDateString,
   IsIn,
   IsOptional,
   IsString,
   IsBoolean,
   MaxLength,
+  MinLength,
   ValidateNested
 } from 'class-validator';
 
@@ -87,8 +89,15 @@ class CreateParentLinkDto {
   @MaxLength(150)
   displayName: string;
 
+  @ApiPropertyOptional({ example: 'jane.parent' })
+  @IsString()
+  @MinLength(3)
+  @MaxLength(50)
+  username: string;
+
   @ApiPropertyOptional({ example: 'StrongPass123' })
   @IsString()
+  @MinLength(8)
   @MaxLength(200)
   password: string;
 
@@ -113,6 +122,11 @@ class CreateParentLinkDto {
   @IsString()
   @MaxLength(30)
   phone?: string;
+
+  @ApiPropertyOptional({ example: '1980-04-15' })
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string;
 
   @ApiPropertyOptional({ example: 'backup-parent@example.com' })
   @IsOptional()

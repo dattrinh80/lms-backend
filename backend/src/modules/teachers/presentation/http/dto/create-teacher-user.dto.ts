@@ -1,6 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength, ValidateNested } from 'class-validator';
+import {
+  IsDateString,
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+  ValidateNested
+} from 'class-validator';
 
 import { CreateTeacherProfileDto } from './create-teacher-profile.dto';
 
@@ -16,10 +25,27 @@ class TeacherUserAccountDto {
   @MaxLength(150)
   displayName: string;
 
+  @ApiProperty({ example: 'jane.teacher' })
+  @IsString()
+  @MinLength(3)
+  @MaxLength(50)
+  username: string;
+
   @ApiProperty({ example: 'TeacherP@ssw0rd' })
   @IsString()
   @MinLength(8)
   password: string;
+
+  @ApiProperty({ example: '+84901112233', required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  phoneNumber?: string;
+
+  @ApiProperty({ example: '1985-02-10', required: false })
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string;
 
   @ApiProperty({ enum: USER_STATUS_VALUES, required: false })
   @IsOptional()

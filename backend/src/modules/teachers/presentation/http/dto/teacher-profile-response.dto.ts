@@ -10,13 +10,22 @@ class TeacherUserResponseDto {
   email: string;
 
   @ApiProperty()
+  username: string;
+
+  @ApiProperty()
   displayName: string;
 
-  @ApiProperty({ type: [String] })
-  roles: string[];
+  @ApiProperty({ enum: ['ADMIN', 'STUDENT', 'TEACHER', 'PARENT', 'HUMAN_RESOURCES'] })
+  role: string;
 
   @ApiProperty()
   status: string;
+
+  @ApiProperty({ required: false, nullable: true })
+  phoneNumber?: string | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  dateOfBirth?: string | null;
 }
 
 export class TeacherProfileResponseDto {
@@ -52,9 +61,14 @@ export class TeacherProfileResponseDto {
       user: {
         id: teacher.user.id,
         email: teacher.user.email,
+        username: teacher.user.username,
         displayName: teacher.user.displayName,
-        roles: teacher.user.roles,
-        status: teacher.user.status
+        role: teacher.user.role,
+        status: teacher.user.status,
+        phoneNumber: teacher.user.phoneNumber ?? null,
+        dateOfBirth: teacher.user.dateOfBirth
+          ? teacher.user.dateOfBirth.toISOString().split('T')[0]
+          : null
       }
     };
   }

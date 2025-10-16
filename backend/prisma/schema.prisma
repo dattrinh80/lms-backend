@@ -11,17 +11,28 @@ datasource db {
 model User {
   id          String   @id @default(cuid())
   email       String   @unique
+  username    String   @unique
   password    String
   displayName String
-  roles       Json
+  role        UserRole
   status      String   @default("active")
   metadata    Json?
+  phoneNumber String?
+  dateOfBirth DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   student Student?
   teacher Teacher?
   parent  Parent?
+}
+
+enum UserRole {
+  ADMIN
+  STUDENT
+  TEACHER
+  PARENT
+  HUMAN_RESOURCES
 }
 
 model Student {

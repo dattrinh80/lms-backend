@@ -12,13 +12,22 @@ class StudentUserResponseDto {
   email: string;
 
   @ApiProperty()
+  username: string;
+
+  @ApiProperty()
   displayName: string;
 
-  @ApiProperty({ type: [String] })
-  roles: string[];
+  @ApiProperty({ enum: ['ADMIN', 'STUDENT', 'TEACHER', 'PARENT', 'HUMAN_RESOURCES'] })
+  role: string;
 
   @ApiProperty()
   status: string;
+
+  @ApiProperty({ required: false, nullable: true })
+  phoneNumber?: string | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  dateOfBirth?: string | null;
 }
 
 class StudentParentResponseDto {
@@ -83,9 +92,14 @@ export class StudentProfileResponseDto {
       user: {
         id: student.user.id,
         email: student.user.email,
+        username: student.user.username,
         displayName: student.user.displayName,
-        roles: student.user.roles,
-        status: student.user.status
+        role: student.user.role,
+        status: student.user.status,
+        phoneNumber: student.user.phoneNumber ?? null,
+        dateOfBirth: student.user.dateOfBirth
+          ? student.user.dateOfBirth.toISOString().split('T')[0]
+          : null
       },
       parents: parents.map(parent => ({
         parentId: parent.parentId,

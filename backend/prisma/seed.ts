@@ -8,54 +8,154 @@ async function main() {
   const teacherPassword = await bcrypt.hash('teacher123', 10);
   const studentPassword = await bcrypt.hash('student123', 10);
   const parentPassword = await bcrypt.hash('parent123', 10);
+  const seedUserPassword = await bcrypt.hash('SeedUser123!', 10);
+
+  const adminUserData = {
+    email: 'dattvhp@gmail.com',
+    username: 'admin',
+    password: adminPassword,
+    displayName: 'System Admin',
+    role: 'ADMIN' as const,
+    status: 'active' as const,
+    phoneNumber: '+84900111222',
+    dateOfBirth: new Date('1980-01-01')
+  };
 
   const adminUser = await prisma.user.upsert({
-    where: { email: 'dattvhp@gmail.com' },
-    update: {},
-    create: {
-      email: 'dattvhp@gmail.com',
-      password: adminPassword,
-      displayName: 'System Admin',
-      roles: ['ADMIN'],
-      status: 'active'
-    }
+    where: { email: adminUserData.email },
+    update: {
+      username: adminUserData.username,
+      password: adminUserData.password,
+      displayName: adminUserData.displayName,
+      role: adminUserData.role,
+      status: adminUserData.status,
+      phoneNumber: adminUserData.phoneNumber,
+      dateOfBirth: adminUserData.dateOfBirth
+    },
+    create: adminUserData
   });
+
+  const teacherUserData = {
+    email: 'dattv.apt@gmail.com',
+    username: 'jane.teacher',
+    password: teacherPassword,
+    displayName: 'Jane Teacher',
+    role: 'TEACHER' as const,
+    status: 'active' as const,
+    phoneNumber: '+84908887766',
+    dateOfBirth: new Date('1985-05-10')
+  };
 
   const teacherUser = await prisma.user.upsert({
-    where: { email: 'dattv.apt@gmail.com' },
-    update: {},
-    create: {
-      email: 'dattv.apt@gmail.com',
-      password: teacherPassword,
-      displayName: 'Jane Teacher',
-      roles: ['TEACHER'],
-      status: 'active'
-    }
+    where: { email: teacherUserData.email },
+    update: {
+      username: teacherUserData.username,
+      password: teacherUserData.password,
+      displayName: teacherUserData.displayName,
+      role: teacherUserData.role,
+      status: teacherUserData.status,
+      phoneNumber: teacherUserData.phoneNumber,
+      dateOfBirth: teacherUserData.dateOfBirth
+    },
+    create: teacherUserData
   });
+
+  const studentUserData = {
+    email: 'dattv.pro@gmail.com',
+    username: 'john.student',
+    password: studentPassword,
+    displayName: 'John Student',
+    role: 'STUDENT' as const,
+    status: 'active' as const,
+    phoneNumber: '+84907776655',
+    dateOfBirth: new Date('2006-09-15')
+  };
 
   const studentUser = await prisma.user.upsert({
-    where: { email: 'dattv.pro@gmail.com' },
-    update: {},
-    create: {
-      email: 'dattv.pro@gmail.com',
-      password: studentPassword,
-      displayName: 'John Student',
-      roles: ['STUDENT'],
-      status: 'active'
-    }
+    where: { email: studentUserData.email },
+    update: {
+      username: studentUserData.username,
+      password: studentUserData.password,
+      displayName: studentUserData.displayName,
+      role: studentUserData.role,
+      status: studentUserData.status,
+      phoneNumber: studentUserData.phoneNumber,
+      dateOfBirth: studentUserData.dateOfBirth
+    },
+    create: studentUserData
   });
 
+  const parentUserData = {
+    email: 'parent@example.com',
+    username: 'mary.parent',
+    password: parentPassword,
+    displayName: 'Mary Parent',
+    role: 'PARENT' as const,
+    status: 'active' as const,
+    phoneNumber: '+84901234567',
+    dateOfBirth: new Date('1982-03-20')
+  };
+
   const parentUser = await prisma.user.upsert({
-    where: { email: 'parent@example.com' },
-    update: {},
-    create: {
-      email: 'parent@example.com',
-      password: parentPassword,
-      displayName: 'Mary Parent',
-      roles: ['PARENT'],
-      status: 'active'
-    }
+    where: { email: parentUserData.email },
+    update: {
+      username: parentUserData.username,
+      password: parentUserData.password,
+      displayName: parentUserData.displayName,
+      role: parentUserData.role,
+      status: parentUserData.status,
+      phoneNumber: parentUserData.phoneNumber,
+      dateOfBirth: parentUserData.dateOfBirth
+    },
+    create: parentUserData
   });
+
+  const extraRoles = ['ADMIN', 'STUDENT', 'TEACHER', 'PARENT', 'HUMAN_RESOURCES'] as const;
+
+  await Promise.all(
+    Array.from({ length: 50 }, (_, index) => {
+      const sequence = index + 1;
+      const role = extraRoles[index % extraRoles.length];
+      const email = `seeduser${sequence}@example.com`;
+      const username = `seed.user${sequence}`;
+      const displayName = `Seed ${role.replace('_', ' ')} ${sequence}`;
+      const phoneNumber = `+8498${(1000 + sequence).toString().slice(-4)}`;
+      const dateOfBirth = new Date(1990 + Math.floor(index / 12), index % 12, (index % 28) + 1);
+
+      return prisma.user.upsert({
+        where: { email },
+        update: {
+          username,
+          displayName,
+          role,
+          status: 'active',
+          password: seedUserPassword,
+          phoneNumber,
+          dateOfBirth,
+          metadata: {
+            source: 'seed',
+            batch: 'extra-users',
+            index: sequence
+          }
+        },
+        create: {
+          email,
+          username,
+          password: seedUserPassword,
+          displayName,
+          role,
+          status: 'active',
+          phoneNumber,
+          dateOfBirth,
+          metadata: {
+            source: 'seed',
+            batch: 'extra-users',
+            index: sequence
+          }
+        }
+      });
+    })
+  );
 
   const teacher = await prisma.teacher.upsert({
     where: { userId: teacherUser.id },

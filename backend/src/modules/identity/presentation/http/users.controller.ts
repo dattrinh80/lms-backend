@@ -12,7 +12,7 @@ import {
   Query,
   UseGuards
 } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { buildPaginatedResponse } from '@app/common/utils/pagination.util';
 import { Roles } from '@app/common/decorators/roles.decorator';
@@ -56,14 +56,32 @@ export class UsersController {
   @Post()
   @ApiOperation({ summary: 'Create a new user' })
   async create(@Body() dto: CreateUserDto) {
-    const user = await this.usersService.createUser(dto);
+    const user = await this.usersService.createUser({
+      email: dto.email,
+      username: dto.username,
+      password: dto.password,
+      displayName: dto.displayName,
+      role: dto.role,
+      status: dto.status,
+      phoneNumber: this.normalizePhoneNumber(dto.phoneNumber),
+      dateOfBirth: this.parseDateOfBirth(dto.dateOfBirth)
+    });
     return UserResponseDto.fromDomain(user);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update user' })
   async update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
-    const user = await this.usersService.updateUser(id, dto);
+    const user = await this.usersService.updateUser(id, {
+      displayName: dto.displayName,
+      password: dto.password,
+      username: dto.username,
+      role: dto.role,
+      status: dto.status,
+      phoneNumber:
+        dto.phoneNumber === undefined ? undefined : this.normalizePhoneNumber(dto.phoneNumber),
+      dateOfBirth: this.parseDateOfBirth(dto.dateOfBirth)
+    });
     return UserResponseDto.fromDomain(user);
   }
 
@@ -72,5 +90,30 @@ export class UsersController {
   @ApiOperation({ summary: 'Delete user' })
   async remove(@Param('id') id: string) {
     await this.usersService.deleteUser(id);
+  }
+
+  private parseDateOfBirth(value?: string | null): Date | null | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null || value.trim().length === 0) {
+      return null;
+    }
+
+    return new Date(value);
+  }
+
+  private normalizePhoneNumber(value?: string | null): string | null | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null) {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
   }
 }

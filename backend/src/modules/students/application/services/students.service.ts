@@ -26,6 +26,7 @@ export interface ExistingParentLinkPayload {
 
 export interface NewParentPayload {
   email: string;
+  username: string;
   displayName: string;
   password: string;
   phone?: string;
@@ -36,6 +37,7 @@ export interface NewParentPayload {
   isPrimary?: boolean;
   status?: ParentStudentLink['status'];
   metadata?: Record<string, unknown>;
+  dateOfBirth?: string | null;
 }
 
 export interface UpdateParentLinkPayload {
@@ -69,10 +71,13 @@ export interface StudentProfileDetails {
 
 export interface CreateStudentUserAccountInput {
   email: string;
+  username: string;
   password: string;
   displayName: string;
   status?: User['status'];
   metadata?: Record<string, unknown>;
+  phoneNumber?: string | null;
+  dateOfBirth?: string | null;
 }
 
 export interface CreateStudentUserInput {
@@ -107,15 +112,21 @@ export class StudentsService {
     const hashedPassword = await bcrypt.hash(input.user.password, 10);
 
     const userId = await this.prisma.$transaction(async tx => {
+      const phoneNumber = this.normalizePhoneNumber(input.user.phoneNumber);
+      const dateOfBirth = this.parseDateOfBirth(input.user.dateOfBirth);
+
       const createdUser = await tx.user.create({
         data: {
           email: input.user.email,
+          username: input.user.username,
           password: hashedPassword,
           displayName: input.user.displayName,
-          roles: ['STUDENT'],
+          role: 'STUDENT',
           status: input.user.status ?? 'active',
           metadata:
-            input.user.metadata !== undefined ? serializePrismaJson(input.user.metadata) : undefined
+            input.user.metadata !== undefined ? serializePrismaJson(input.user.metadata) : undefined,
+          phoneNumber: phoneNumber === undefined ? undefined : phoneNumber,
+          dateOfBirth
         }
       });
 
@@ -147,7 +158,7 @@ export class StudentsService {
       throw new NotFoundException('User not found');
     }
 
-    if (!user.roles.includes('STUDENT')) {
+    if (user.role !== 'STUDENT') {
       throw new BadRequestException('User must have STUDENT role before creating profile');
     }
 
@@ -233,22 +244,27 @@ export class StudentsService {
     if (operations.createParents) {
       for (const parent of operations.createParents) {
         const hashedPassword = await bcrypt.hash(parent.password, 10);
+        const phoneNumber = this.normalizePhoneNumber(parent.phone);
+        const dateOfBirth = this.parseDateOfBirth(parent.dateOfBirth);
         const parentUser = await tx.user.create({
           data: {
             email: parent.email,
+            username: parent.username,
             password: hashedPassword,
             displayName: parent.displayName,
-            roles: ['PARENT'],
+            role: 'PARENT',
             status: parent.status ?? 'active',
             metadata:
-              parent.metadata !== undefined ? serializePrismaJson(parent.metadata) : undefined
+              parent.metadata !== undefined ? serializePrismaJson(parent.metadata) : undefined,
+            phoneNumber: phoneNumber === undefined ? undefined : phoneNumber,
+            dateOfBirth
           }
         });
 
         const parentRecord = await tx.parent.create({
           data: {
             userId: parentUser.id,
-            phone: parent.phone,
+            phone: phoneNumber ?? null,
             secondaryEmail: parent.secondaryEmail,
             address: parent.address,
             notes: parent.notes,
@@ -339,5 +355,30 @@ export class StudentsService {
         });
       }
     }
+  }
+
+  private parseDateOfBirth(value?: string | null): Date | null | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null || value.trim().length === 0) {
+      return null;
+    }
+
+    return new Date(value);
+  }
+
+  private normalizePhoneNumber(value?: string | null): string | null | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null) {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
   }
 }

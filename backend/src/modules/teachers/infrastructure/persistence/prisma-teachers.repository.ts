@@ -95,14 +95,15 @@ export class PrismaTeachersRepository extends TeachersRepository {
   }
 
   private mapUser(user: PrismaUser): TeacherUserSummary {
-    const roles = Array.isArray(user.roles) ? (user.roles as string[]) : [];
-
     return {
       id: user.id,
       email: user.email,
+      username: user.username,
       displayName: user.displayName,
-      roles,
-      status: user.status as TeacherUserSummary['status']
+      role: user.role as TeacherUserSummary['role'],
+      status: user.status as TeacherUserSummary['status'],
+      phoneNumber: user.phoneNumber,
+      dateOfBirth: user.dateOfBirth
     };
   }
 }

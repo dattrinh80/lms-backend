@@ -134,7 +134,9 @@ export class PrismaParentsRepository extends ParentsRepository {
     if (filters?.query) {
       where.OR = [
         { user: { email: { contains: filters.query } } },
+        { user: { username: { contains: filters.query } } },
         { user: { displayName: { contains: filters.query } } },
+        { user: { phoneNumber: { contains: filters.query } } },
         { phone: { contains: filters.query } }
       ];
     }
@@ -380,8 +382,12 @@ export class PrismaParentsRepository extends ParentsRepository {
       user: {
         id: record.user.id,
         email: record.user.email,
+        username: record.user.username,
         displayName: record.user.displayName,
-        status: record.user.status as Parent['user']['status']
+        role: record.user.role as Parent['user']['role'],
+        status: record.user.status as Parent['user']['status'],
+        phoneNumber: record.user.phoneNumber,
+        dateOfBirth: record.user.dateOfBirth
       }
     };
 

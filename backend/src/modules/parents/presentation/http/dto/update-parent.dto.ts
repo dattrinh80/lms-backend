@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsDateString, IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class UpdateParentDto {
   @ApiPropertyOptional({ example: 'Mary Parent' })
@@ -7,6 +7,13 @@ export class UpdateParentDto {
   @IsString()
   @MaxLength(150)
   displayName?: string;
+
+  @ApiPropertyOptional({ example: 'mary.parent' })
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(50)
+  username?: string;
 
   @ApiPropertyOptional({ example: 'NewStrongP@ssw0rd' })
   @IsOptional()
@@ -24,6 +31,11 @@ export class UpdateParentDto {
   @IsString()
   @MaxLength(30)
   phone?: string;
+
+  @ApiPropertyOptional({ example: '1980-04-15' })
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string | null;
 
   @ApiPropertyOptional({ example: 'backup@example.com' })
   @IsOptional()

@@ -27,6 +27,7 @@ interface CreateParentStudentLinkInput {
 
 export interface CreateParentInput {
   email: string;
+  username: string;
   displayName: string;
   password: string;
   phone?: string;
@@ -35,11 +36,13 @@ export interface CreateParentInput {
   notes?: string;
   metadata?: Record<string, unknown>;
   status?: User['status'];
+  dateOfBirth?: string | null;
   students?: CreateParentStudentLinkInput[];
 }
 
 export interface UpdateParentInput {
   displayName?: string;
+  username?: string;
   status?: User['status'];
   password?: string;
   phone?: string | null;
@@ -47,6 +50,7 @@ export interface UpdateParentInput {
   address?: string | null;
   notes?: string | null;
   metadata?: Record<string, unknown> | null;
+  dateOfBirth?: string | null;
 }
 
 @Injectable()
@@ -88,24 +92,29 @@ export class ParentsService {
 
   async create(input: CreateParentInput): Promise<Parent> {
     const hashedPassword = await bcrypt.hash(input.password, 10);
+    const phoneNumber = this.normalizePhoneNumber(input.phone);
+    const dateOfBirth = this.parseDateOfBirth(input.dateOfBirth);
 
     const parentId = await this.prisma.$transaction(async tx => {
       const user = await tx.user.create({
         data: {
           email: input.email,
+          username: input.username,
           password: hashedPassword,
           displayName: input.displayName,
-          roles: ['PARENT'],
+          role: 'PARENT',
           status: input.status ?? 'active',
           metadata:
-            input.metadata !== undefined ? serializePrismaJson(input.metadata) : undefined
+            input.metadata !== undefined ? serializePrismaJson(input.metadata) : undefined,
+          phoneNumber: phoneNumber === undefined ? undefined : phoneNumber,
+          dateOfBirth
         }
       });
 
       const parent = await tx.parent.create({
         data: {
           userId: user.id,
-          phone: input.phone,
+          phone: phoneNumber ?? null,
           secondaryEmail: input.secondaryEmail,
           address: input.address,
           notes: input.notes,
@@ -146,14 +155,27 @@ export class ParentsService {
     const parent = await this.findById(id, false);
 
     const result = await this.prisma.$transaction(async tx => {
-      if (input.displayName !== undefined || input.status !== undefined || input.password) {
+      const dateOfBirth = this.parseDateOfBirth(input.dateOfBirth);
+      const phoneNumber = this.normalizePhoneNumber(input.phone);
+
+      if (
+        input.displayName !== undefined ||
+        input.status !== undefined ||
+        input.password ||
+        input.username !== undefined ||
+        input.dateOfBirth !== undefined ||
+        input.phone !== undefined
+      ) {
         const hashedPassword = input.password ? await bcrypt.hash(input.password, 10) : undefined;
         await tx.user.update({
           where: { id: parent.userId },
           data: {
             displayName: input.displayName ?? undefined,
             status: input.status ?? undefined,
-            password: hashedPassword ?? undefined
+            password: hashedPassword ?? undefined,
+            username: input.username ?? undefined,
+            dateOfBirth,
+            phoneNumber: phoneNumber === undefined ? undefined : phoneNumber
           }
         });
       }
@@ -161,7 +183,7 @@ export class ParentsService {
       await tx.parent.update({
         where: { id },
         data: {
-          phone: input.phone === undefined ? undefined : input.phone,
+          phone: input.phone === undefined ? undefined : phoneNumber ?? null,
           secondaryEmail: input.secondaryEmail === undefined ? undefined : input.secondaryEmail,
           address: input.address === undefined ? undefined : input.address,
           notes: input.notes === undefined ? undefined : input.notes,
@@ -205,5 +227,30 @@ export class ParentsService {
     onlyActive = false
   ): Promise<ParentStudentLink[]> {
     return this.parentsRepository.listByStudentId(studentId, { onlyActive });
+  }
+
+  private parseDateOfBirth(value?: string | null): Date | null | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null || value.trim().length === 0) {
+      return null;
+    }
+
+    return new Date(value);
+  }
+
+  private normalizePhoneNumber(value?: string | null): string | null | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null) {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
   }
 }

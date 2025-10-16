@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
+  IsDateString,
   IsEmail,
   IsIn,
   IsNotEmpty,
@@ -43,6 +44,12 @@ export class CreateParentDto {
   @IsEmail()
   email: string;
 
+  @ApiProperty({ example: 'mary.parent' })
+  @IsString()
+  @MinLength(3)
+  @MaxLength(50)
+  username: string;
+
   @ApiProperty({ example: 'Mary Parent' })
   @IsString()
   @MaxLength(150)
@@ -58,6 +65,11 @@ export class CreateParentDto {
   @IsString()
   @MaxLength(30)
   phone?: string;
+
+  @ApiPropertyOptional({ example: '1980-04-15' })
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string;
 
   @ApiPropertyOptional({ example: 'backup@example.com' })
   @IsOptional()

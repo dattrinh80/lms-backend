@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
+import { UserRole } from '@app/modules/identity/domain/entities/user.entity';
+
 import { UsersRepository } from '../../../identity/domain/repositories/users.repository';
 import { AuthCredentials } from '../../domain/entities/auth-credentials.entity';
 import { AuthUser } from '../../domain/entities/auth-user.entity';
@@ -10,7 +12,7 @@ import { AuthUser } from '../../domain/entities/auth-user.entity';
 interface JwtPayload {
   sub: string;
   username: string;
-  roles?: string[];
+  role: UserRole;
 }
 
 @Injectable()
@@ -22,7 +24,11 @@ export class AuthService {
   ) {}
 
   async validateUser(credentials: AuthCredentials): Promise<AuthUser | null> {
-    const user = await this.usersRepository.findByEmail(credentials.username);
+    let user = await this.usersRepository.findByUsername(credentials.username);
+
+    if (!user) {
+      user = await this.usersRepository.findByEmail(credentials.username);
+    }
 
     if (!user || !user.passwordHash) {
       return null;
@@ -36,8 +42,8 @@ export class AuthService {
 
     return {
       id: user.id,
-      username: user.email,
-      roles: user.roles
+      username: user.username,
+      role: user.role
     };
   }
 
@@ -45,7 +51,7 @@ export class AuthService {
     const payload = {
       sub: user.id,
       username: user.username,
-      roles: user.roles
+      role: user.role
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
@@ -79,8 +85,8 @@ export class AuthService {
 
     return this.login({
       id: user.id,
-      username: user.email,
-      roles: user.roles
+      username: user.username,
+      role: user.role
     });
   }
 

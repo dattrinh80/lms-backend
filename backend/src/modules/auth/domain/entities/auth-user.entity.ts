@@ -1,5 +1,7 @@
+import { UserRole } from '@app/modules/identity/domain/entities/user.entity';
+
 export interface AuthUser {
   id: string;
   username: string;
-  roles: string[];
+  role: UserRole;
 }

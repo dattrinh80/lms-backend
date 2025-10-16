@@ -1,27 +1,33 @@
 import { PaginatedResult } from '@app/common/types/pagination';
 
-import { User } from '../entities/user.entity';
+import { User, UserRole } from '../entities/user.entity';
 
 export interface CreateUserInput {
   email: string;
+  username: string;
   password: string;
   displayName: string;
-  roles: string[];
+  role: UserRole;
   status?: 'active' | 'inactive' | 'invited';
   metadata?: Record<string, unknown>;
+  phoneNumber?: string | null;
+  dateOfBirth?: Date | null;
 }
 
 export interface UpdateUserInput {
   displayName?: string;
   password?: string;
-  roles?: string[];
+  username?: string;
+  role?: UserRole;
   status?: 'active' | 'inactive' | 'invited';
   metadata?: Record<string, unknown>;
+  phoneNumber?: string | null;
+  dateOfBirth?: Date | null;
 }
 
 export interface SearchUsersFilters {
   query?: string;
-  roles?: string[];
+  roles?: UserRole[];
   status?: 'active' | 'inactive' | 'invited';
   page?: number;
   limit?: number;
@@ -33,5 +39,6 @@ export abstract class UsersRepository {
   abstract delete(id: string): Promise<void>;
   abstract findById(id: string): Promise<User | null>;
   abstract findByEmail(email: string): Promise<User | null>;
+  abstract findByUsername(username: string): Promise<User | null>;
   abstract search(filters?: SearchUsersFilters): Promise<PaginatedResult<User>>;
 }
